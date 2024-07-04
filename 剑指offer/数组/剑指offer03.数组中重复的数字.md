@@ -1,3 +1,6 @@
+### 题目链接
+https://leetcode.cn/problems/shu-zu-zhong-zhong-fu-de-shu-zi-lcof/
+
 ### 解题思路
 
 https://leetcode.cn/problems/shu-zu-zhong-zhong-fu-de-shu-zi-lcof/
