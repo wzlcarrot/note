@@ -296,3 +296,110 @@ plt.show()
 - 随机梯度下降无法并行计算，时间复杂度高，但学习器的性能好
 
 **总结：梯度下降算法到了鞍点就截止了，只是求到了局部最优解。随机梯度下降算法就是给了一大堆随机的数据，得到一大堆的局部最优解，从而得到全局最优解。**
+
+
+
+## 反向传播算法
+
+**神经网络计算图的画法**
+
+![image-20240817165657286](pytoch入门.assets/image-20240817165657286.png)
+
+**链式法则**
+
+步骤：
+
+1. 前馈计算（用于创建计算图）
+
+​			**从输入x沿着向最终的loss计算，计算出每一个变量的值。**
+
+![image-20240817170820393](pytoch入门.assets/image-20240817170820393.png)
+
+
+
+2. 局部梯度
+
+​			**z=f(x,w)**
+
+![image-20240817172404538](pytoch入门.assets/image-20240817172404538.png)
+
+3. 拿到l对z的偏导(直接给的)
+
+
+
+![image-20240817172344149](pytoch入门.assets/image-20240817172344149.png)
+
+4. 反馈计算
+
+![image-20240817173003195](pytoch入门.assets/image-20240817173003195.png)
+
+
+
+**PyTorch中如何实现前馈和反馈计算？**
+
+![image-20240817174037142](pytoch入门.assets/image-20240817174037142.png)
+
+**训练代码**
+
+```python
+import torch  # 导入pytorch库
+import matplotlib.pyplot as plt
+
+# 训练集
+x_data = [1.0, 2.0, 3.0]
+y_data = [2.0, 4.0, 6.0]
+
+# 结果集
+epoch_list = []
+cost_list = []
+
+# 权重
+w = torch.Tensor([1.0])  # 使用pytorch中的Tensor进行定义赋值
+w.requires_grad = True  # 表示需要计算梯度，默认的是False，即不计算梯度
+
+
+def forward(x):
+    # 定义模型：y_hat = x * w，其中w是一个张量Tensor，因此该乘法*被重载了，变成了Tensor之间的数乘
+    # x需要为Tensor，如果不是，则会自动转换成Tensor
+    return x * w
+
+
+# 损失均方差
+def loss(x, y):
+    y_pred = forward(x)
+    return (y_pred - y) ** 2
+
+
+print('Predict (before training)', 4, forward(4).item())
+
+for epoch in range(100):
+    for x, y in zip(x_data, y_data):
+        l = loss(x, y)  # 前馈计算，创建出计算图.l是tensor类型
+        l.backward()  # 反馈,计算出l对w的偏导，并且存储在w中
+        print("grad: ", x, y, w.grad.item())  # item是将梯度中的数值取出来作为一个标量
+
+        w.data = w.data - 0.01 * w.grad.data
+
+        w.grad.data.zero_()  # 更新完成后将梯度清零，否则会被累加到下一轮训练
+
+    print("progress: ", epoch, l.item())
+    epoch_list.append(epoch)
+    cost_list.append(l.item())
+
+print('Predict (after training)', 4, forward(4).item())
+
+plt.plot(epoch_list, cost_list)
+plt.ylabel('cost')
+plt.xlabel('epoch')
+plt.show()
+```
+
+**相关结果**
+
+![image-20240817204923325](pytoch入门.assets/image-20240817204923325.png)
+
+
+
+**补充相关计算图**
+
+![image-20240817205044614](pytoch入门.assets/image-20240817205044614.png)
