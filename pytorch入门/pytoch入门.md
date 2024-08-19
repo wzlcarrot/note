@@ -403,3 +403,101 @@ plt.show()
 **补充相关计算图**
 
 ![image-20240817205044614](pytoch入门.assets/image-20240817205044614.png)
+
+
+
+## 使用pytorch实现线性回归
+
+**1. 准备数据集**
+
+![image-20240819131246102](pytoch入门.assets/image-20240819131246102.png)
+
+**2. 设计模型**
+
+![image-20240819131633376](pytoch入门.assets/image-20240819131633376.png)
+
+**3. 构造损失函数和优化器**
+
+1. 损失函数使用MSE
+   - MSELoss继承自nn.Module，参与计算图的构建
+
+![image-20240819132829775](pytoch入门.assets/image-20240819132829775.png)
+
+- size_average：是否要求均值（可求可不求）
+- reduce：是否要降维（一般只考虑size_average）
+
+2. 优化器使用SGD
+   * torch.optim.SGD()是一个类，与nn.Module无关，不参与计算图的构建
+
+![image-20240819133258849](pytoch入门.assets/image-20240819133258849.png)
+
+model中并没有定义相应的权重，但里面的成员函数linear有权重。model.parameters()是继承自Module，它会检查model中的所有成员函数，如果成员中有相应的权重，那就将其都加到最终的训练结果上。lr：learning rate，一般都设定一个固定的学习率。
+
+
+
+**4. 训练过程**
+
+![image-20240819134016744](pytoch入门.assets/image-20240819134016744.png)
+
+**5. 代码实现**
+
+```python
+import torch
+
+x_data = torch.Tensor([[1.0], [2.0], [3.0]])
+y_data = torch.Tensor([[2.0], [4.0], [6.0]])
+
+epoch_list = []
+cost_list = []
+
+# 设计线性回归模型
+class LinearModel(torch.nn.Module):  # 从module继承类
+    def __init__(self):
+        # super调用父类构造
+        super().__init__()
+        self.linear = torch.nn.Linear(1, 1)  # （1,1）输入的x是一维向量，输出y也是一维向量
+
+    def forward(self, x):  # 只能写forward，forward的本意是前馈，但是这里并没有进行前馈计算，只是构建了计算图。
+        y_pred = self.linear(x)  # 实现一个可调用的对象，也就是线性模型,同时也创建了计算图
+        return y_pred
+
+
+# w和b是初始化随机值的
+model = LinearModel()
+
+# 构造损失函数和优化函数
+criterion = torch.nn.MSELoss(reduction='sum')  # sum表示方差要计算总和、mse表示的是计算平均值。
+# sgd表示用随机梯度下降算法来优化。model.parameters()表示的是model中的所有参数。weight and bias
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
+
+for epoch in range(100):  # 迭代100次
+    y_pred = model(x_data)  # 在创建实例对象的中途，同时调用了forward方法。
+
+
+    loss = criterion(y_pred, y_data)  # 前馈
+    epoch_list.append(epoch)
+    cost_list.append(loss.item())
+    print(epoch, loss.item())
+    print('w=', model.linear.weight.item())
+    print('b=', model.linear.bias.item())
+    print()
+
+    optimizer.zero_grad()  # 梯度归零
+    loss.backward()  # 反向传播
+    optimizer.step()  # 更新
+
+
+x_test = torch.Tensor([[4.0]])
+y_test = model(x_test)
+print('y_pred=', y_test.item())
+
+print(epoch_list)
+print(cost_list)
+```
+
+
+
+**6. 训练结果**
+
+![image-20240819175140753](pytoch入门.assets/image-20240819175140753.png)
