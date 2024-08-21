@@ -1,4 +1,4 @@
-## 线性模型
+## 1. 线性模型
 
 **机器学习的工作流程**
 
@@ -110,7 +110,7 @@ plt.show()
 
 
 
-## 梯度下降
+## 2. 梯度下降算法
 
 **梯度下降法**：
 
@@ -299,7 +299,7 @@ plt.show()
 
 
 
-## 反向传播算法
+## 3. 反向传播算法
 
 **神经网络计算图的画法**
 
@@ -406,7 +406,7 @@ plt.show()
 
 
 
-## 使用pytorch实现线性回归
+## 4. 使用pytorch实现线性回归
 
 **1. 准备数据集**
 
@@ -501,3 +501,94 @@ print(cost_list)
 **6. 训练结果**
 
 ![image-20240819175140753](pytoch入门.assets/image-20240819175140753.png)
+
+## 5. 逻辑回归函数
+
+逻辑回归本质是线性回归，但是它加了sigmoid函数。换句话来说就是01分布。
+
+![image-20240821125922440](pytoch入门.assets/image-20240821125922440.png)
+
+**二分类损失函数**
+
+![image-20240821130555670](pytoch入门.assets/image-20240821130555670.png)
+
+
+
+**Mini-Batch**
+
+![image-20240821131203577](pytoch入门.assets/image-20240821131203577.png)
+
+**逻辑斯蒂函数**
+
+![image-20240821131847096](pytoch入门.assets/image-20240821131847096.png)
+
+**逻辑回归计算图**
+
+![image-20240821132455365](pytoch入门.assets/image-20240821132455365.png)
+
+
+
+**训练代码**
+
+```python
+import torch
+import torch.nn.functional as F
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 数据集
+x_data = torch.Tensor([[1.0], [2.0], [3.0]])
+y_data = torch.Tensor([[0], [0], [1]])
+
+
+# 　设计逻辑回归模型
+class LogisticRegressionModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = torch.nn.Linear(1, 1)  # 输入的向量是一维向量，输出的向量是一维向量
+
+    def forward(self, x):
+        #  linear(): argument 'input' (position 1) must be Tensor
+        y_pred = F.sigmoid(self.linear(x))  # 构建计算图
+        return y_pred
+
+
+# 构建逻辑回归模型
+model = LogisticRegressionModel()
+# 构建损失函数和优化器
+criterion = torch.nn.BCELoss(reduction='sum')
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
+# 训练过程
+for epoch in range(1000):
+    y_pred = model(x_data)  # 前馈：计算y_hat
+    loss = criterion(y_pred, y_data)  # 前馈：计算损失
+    print(epoch, loss.item())
+    # 输出权重和偏置
+    print('w = ', model.linear.weight.item())
+    print('b = ', model.linear.bias.item())
+
+    optimizer.zero_grad()  # 反馈：在反向传播开始将上一轮的梯度归零
+    loss.backward()  # 反馈：反向传播（计算梯度）
+    optimizer.step()  # 更新权重w和偏置b
+
+# 测试模型
+x = np.linspace(0, 10, 200)  # 每周学习时间从0 ~ 10小时采样200个点
+x_t = torch.Tensor(x).view((200, 1))  # 将学习时间x转成200行1列的张量
+y_t = model(x_t)  # 输给模型
+y = y_t.data.numpy()  # 将y_t的数据拿出来
+
+plt.plot(x, y)
+plt.plot([0, 10], [0.5, 0.5])
+plt.xlabel('Hours')
+plt.ylabel('Probability of Pass')
+plt.grid()
+plt.show()
+```
+
+
+
+**训练结果**
+
+![image-20240821213332225](pytoch入门.assets/image-20240821213332225.png)
+
