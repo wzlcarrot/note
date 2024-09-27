@@ -592,3 +592,223 @@ plt.show()
 
 ![image-20240821213332225](pytoch入门.assets/image-20240821213332225.png)
 
+
+
+
+
+## 6. 多维特征的输入
+
+**多维逻辑回归模型**
+
+![image-20240905165337403](pytoch入门.assets/image-20240905165337403.png)
+
+**min-batch**
+
+mini-batch表示的是取出n个样本，也就是通过这n个输入来计算出n个输出。
+
+![image-20240905165854064](pytoch入门.assets/image-20240905165854064.png)
+
+
+
+**2. 线性层和人工神经网络**
+
+![image-20240905170254755](pytoch入门.assets/image-20240905170254755.png)
+
+补充：神经网络是寻找一种非线性的空间变换的函数。
+
+![image-20240905170454170](pytoch入门.assets/image-20240905170454170.png)
+
+补充：神经网络的层数越多，它的学习能力就越强。学习能力越强并不是一件好事，可能同时也掌握了噪声的规律。
+
+![image-20240905170738316](pytoch入门.assets/image-20240905170738316.png)
+
+**3.例子：糖尿病是否恶化的预测**
+
+**3.1 数据集**
+每个样本有好几个特征。
+
+![image-20240905170903366](pytoch入门.assets/image-20240905170903366.png)
+
+补充：feature在深度学习里意思是特征，类似于数据库中的字段。sample在深度学习中意思是样本，类似于数据库中的记录。
+
+
+
+**3.2 深度学习的四大步骤**
+
+1. 准备数据集
+2. 设计模型
+3. 构造损失函数和优化器
+4. 训练周期
+
+
+
+**代码实现**
+
+```python
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+
+
+xy = np.loadtxt('C:/Users/10179/Desktop/diabetes.csv.gz', delimiter=',', dtype=np.float32)
+
+x_data = torch.from_numpy(xy[:, :-1])
+y_data = torch.from_numpy(xy[:, [-1]])
+
+
+class Model(torch.nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        self.linear1 = torch.nn.Linear(8, 6)
+        self.linear2 = torch.nn.Linear(6, 4)
+        self.linear3 = torch.nn.Linear(4, 1)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.sigmoid(self.linear1(x))
+        x = self.sigmoid(self.linear2(x))
+        x = self.sigmoid(self.linear3(x))
+        return x
+
+
+model = Model()
+
+criterion = torch.nn.BCELoss(reduction='mean')  # mean的意思是计算所有样本的均值
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+
+epoch_list = []
+loss_list = []
+
+for epoch in range(100):
+    # Forward 前向传播
+    y_hat = model(x_data)
+    loss = criterion(y_hat, y_data)
+    print(epoch, loss.item())
+
+    # Backward 反向传播
+    optimizer.zero_grad()
+    loss.backward()
+
+    # Update 更新
+    optimizer.step()
+
+    epoch_list.append(epoch)
+    loss_list.append(loss.item())
+
+    if epoch % 10 == 9:
+        y_pred_label = torch.where(y_hat >= 0.5, torch.tensor([1.0]), torch.tensor([0.0]))
+
+        accuracy = torch.eq(y_pred_label, y_data).sum().item() / y_data.size(0)
+        print("loss = ", loss.item(), "acc = ", accuracy)
+
+plt.plot(epoch_list, loss_list)
+plt.xlabel('epoch')
+plt.ylabel('loss')
+plt.show()
+```
+
+
+
+**训练结果**
+
+![image-20240905192208600](pytoch入门.assets/image-20240905192208600.png)
+
+
+
+## 7. 加载数据集
+
+知识点：Dataset和Dataload，以及minibatch训练
+
+问题描述：将数据集进行统一的封装
+
+主要思路：利用Dataset划分数据集，转tensor张量，并支持索引；利用Dataload进行批处理并打乱数据集
+
+
+
+由于Dataset为抽象类，需要自定义后继承
+__init__：一般根据传入的文件名去指定文件获取数据集，并定义len（shape后取行数）, x, y作为属性
+__getitem__：利用索引直接返回即可
+__len__：直接返回数据长度的属性
+而Dataload对其进行实例化即可，需要指定：数据集、是否打乱、多线程等（由于win和linux下多线程调用库不一致，因此主循环需要加入判断语句）
+由于采用batch进行训练，因此要进行嵌套for循环，Dataload处理成一批批数据了，每次读入一批
+
+
+
+**相关代码**
+
+```python
+import numpy as np
+import torch
+from torch.utils.data import Dataset, DataLoader
+import matplotlib.pyplot as plt
+
+
+# 1.数据准备(Dataset为抽象类，需要实例化)
+class DiabetesDataset(Dataset):
+    def __init__(self, filepath):
+        xy = np.loadtxt(filepath, delimiter=',', dtype=np.float32)
+        self.len = xy.shape[0]
+        self.x = torch.from_numpy(xy[:, :-1])
+        self.y = torch.from_numpy(xy[:, [-1]])
+
+    def __getitem__(self, index):
+        return self.x[index], self.y[index]
+
+    def __len__(self):
+        return self.len
+
+
+dataset = DiabetesDataset('C:/Users/10179/Desktop/diabetes.csv.gz')
+train_loader = DataLoader(dataset=dataset, batch_size=32, shuffle=True, num_workers=0)
+
+
+# 2.模型定义
+class LogicModule(torch.nn.Module):
+    def __init__(self):
+        super(LogicModule, self).__init__()
+        self.linear1 = torch.nn.Linear(8, 6)
+        self.linear2 = torch.nn.Linear(6, 4)
+        self.linear3 = torch.nn.Linear(4, 1)
+        self.sigmoid = torch.nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.sigmoid(self.linear1(x))
+        x = self.sigmoid(self.linear2(x))
+        x = self.sigmoid(self.linear3(x))
+        return x
+
+
+model = LogicModule()
+
+# 3.损失函数和优化器
+criterion = torch.nn.BCELoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+
+# 4.模型训练(由于new_work在win和linux下不兼容，需要用if)
+if __name__ == '__main__':
+    loss_list = []
+    for epoch in range(500):
+        loss_epoch = 0
+        for i, (x, y) in enumerate(train_loader):  # 这里只有训练数据
+            y_pre = model(x)
+            loss = criterion(y_pre, y)
+            # 表示一轮损失的总和
+            loss_epoch += loss.item()
+            # print('epoch=', epoch, 'loss=', loss.item())
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        # 一轮损失总和的平均值
+        loss_list.append(loss_epoch / i)
+
+    # 绘制每个epoch中每个batch平均损失随epoch的图像
+    plt.plot(loss_list)
+    plt.show()
+```
+
+**训练结果**
+
+![image-20240905235511663](pytoch入门.assets/image-20240905235511663.png)
+
+
+
